@@ -1,7 +1,7 @@
 # ⚽ EPL Player Performance Predictor
 
 ## 📘 Overview
-This project builds a **machine learning model** that predicts and ranks football players’ expected performances on the 2025-2026 premier league based on their euros performance.  
+This project builds a **machine learning model** that predicts and ranks football players’ expected performances in the 2025–2026 premier league season based on their euros' performance.  
 It uses **scikit-learn regression models** (Linear Regression, Ridge Regression, and Random Forest Regressor) trained on per-90 metrics, then converts the model’s output into a **1–5 rating scale** to make the results interpretable.
 
 The final output is a CSV file containing **Premier League players** ranked from highest to lowest expected performance, along with their **age, team, and role**.
