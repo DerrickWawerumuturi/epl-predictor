@@ -1,102 +1,110 @@
-# ⚽ EPL Player Performance Predictor
+# ⚽ XG-Predictor — Euro 2024 → Premier League
 
-## 📘 Overview
-This project builds a **machine learning model** that predicts and ranks football players’ expected performances in the 2025–2026 premier league season based on their euros' performance.  
-It uses **scikit-learn regression models** (Linear Regression, Ridge Regression, and Random Forest Regressor) trained on per-90 metrics, then converts the model’s output into a **1–5 rating scale** to make the results interpretable.
+Rating Euro 2024 players, and forecasting how much they actually produced in the 2025–26 Premier League season.
 
-The final output is a CSV file containing **Premier League players** ranked from highest to lowest expected performance, along with their **age, team, and role**.
+Two components, deliberately kept apart:
 
----
+1. **Euro Impact Index** — a transparent weighted score that *describes* Euro 2024 performance. No training, no accuracy claim.
+2. **2025–26 Forecast** — a supervised model that predicts real Premier League output from Euro form, cross-validated against two baselines.
 
-## 🎯 Objective
-Predict how well a player is expected to perform (relative to others) based on their playing time, efficiency, and attacking metrics — and assign each a human-readable rating between **1.0 and 5.0**.
+A React frontend visualises the index. Full methodology and known limitations are in **[MODEL_CARD.md](MODEL_CARD.md)**.
 
 ---
 
-## 🧩 Key Steps
-1. **Data Preparation**
-   - Load player statistics into a Pandas DataFrame (`df_model`).
-   - Include numerical and categorical features.
-   - Define the target variable (`target_reg`) — a standardized performance measure.
+## Why the split matters
 
-2. **Feature Encoding**
-   - Numeric features are kept as floats.
-   - The categorical `role` column is one-hot encoded using `pd.get_dummies()`.
+The first version of this project trained a Random Forest whose target was arithmetic on its own features — the label for forwards was `z(gls_90 − xg_90)` while both `gls_90` and `xg_90` sat in the feature list. It reported strong metrics because it was recovering a subtraction, not learning football. It also claimed to predict the 2025–26 season while containing no 2025–26 data at all.
 
-3. **Train–Validation–Test Split**
-   - Data is split into train, validation, and test sets using `train_test_split`.
-   - Stratification by player role ensures balanced representation across positions.
-
-4. **Model Training**
-   Three models are trained and evaluated:
-   - **Linear Regression** — captures simple linear relationships.
-   - **Ridge Regression (RidgeCV)** — adds regularization to prevent overfitting.
-   - **Random Forest Regressor** — an ensemble of decision trees that models non-linear relationships.
-
-5. **Evaluation Metrics**
-   - **MAE (Mean Absolute Error)** — measures average prediction error.
-   - **RMSE (Root Mean Square Error)** — penalizes large errors.
-   - **R² (R-squared)** — measures variance explained by the model.
-
-➜ **Random Forest** performs best.
-
-6. **Performance Scaling**
-- The model’s predicted scores are scaled into a 1.0–5.0 range using the 5th and 95th percentiles.
-- This creates a clean, human-friendly rating scale:
-  - 1.0 = low performance  
-  - 3.0 = average  
-  - 5.0 = top performance  
-
-7. **Premier League Filtering**
-- FBref player stats are scraped via `pd.read_html()` from  
-  [https://fbref.com/en/comps/9/stats/Premier-League-Stats](https://fbref.com/en/comps/9/stats/Premier-League-Stats)
-- Player names are cleaned with `clean_name()` and merged with the prediction DataFrame to keep only EPL players.
-- Age and team are extracted and added as new columns.
-
-8. **Final Output**
-The final CSV (`premier_league_player_ratings_final.csv`) includes:
-- `player_name`
-- `age`
-- `team`
-- `role`
-- `predicted_performance`
-- `rating_5pt`
-
----
-## Running the file
-` python epl_player_predictor.py `
-
-## 🧠 How Random Forest Works (Simplified)
-- Trains many decision trees on random subsets of data.
-- Each tree predicts a performance value.
-- The final prediction is the **average of all trees**.
-- This reduces overfitting and captures non-linear patterns in player metrics.
+Rather than paper over that, the descriptive part and the predictive part are now separate programs with separate claims. `MODEL_CARD.md` §3 lists every issue found and what changed.
 
 ---
 
-## ⚙️ Tech Stack
-- **Python 3.11**
-- **Pandas** — data wrangling
-- **NumPy** — numerical operations
-- **Scikit-learn** — modeling & evaluation
-- **Requests / lxml** — web scraping (FBref)
-- **Matplotlib (optional)** — visualization
+## Layout
+
+```
+backend/
+  data/
+    tournaments/euros.py      # FBref → Euro 2024 aggregate (via soccerdata)
+    fetch_actuals.py          # FPL API → real 2025-26 EPL output (the labels)
+    actuals/                  # generated
+  models/
+    common.py                 # loading, role mapping, name normalisation
+    index_score.py            # Euro Impact Index      (no labels needed)
+    forecast.py               # supervised forecast     (labels required)
+    outputs/                  # generated CSV + metrics JSON
+frontend/                     # React + Vite single-page UI
+MODEL_CARD.md
+```
 
 ---
 
-## 📂 Output Example
+## Run it
 
-| Player Name | Age | Team | Role | Predicted Performance | Rating (1–5) |
-|--------------|-----|------|------|-----------------------|---------------|
-| Erling Haaland | 24 | Man City | FW | 0.842 | 4.9 |
-| Bukayo Saka | 23 | Arsenal | FW | 0.715 | 4.6 |
-| Rodri | 28 | Man City | MF | 0.522 | 4.2 |
-| James Maddison | 27 | Tottenham | MF | 0.314 | 3.8 |
-| Declan Rice | 25 | Arsenal | MF | 0.181 | 3.5 |
+**Install**
 
----
-
-## 💾 Running the Script
-1. Install dependencies:
 ```bash
-pip install pandas numpy scikit-learn lxml requests
+pip install pandas numpy scikit-learn scipy pyarrow soccerdata lxml requests
+```
+
+**1. Euro Impact Index** — works offline from the committed parquet:
+
+```bash
+cd backend/models
+python index_score.py
+```
+
+Writes `outputs/euro_impact_index.csv` and `outputs/index_meta.json`.
+
+**2. The forecast** — needs the real labels first:
+
+```bash
+python backend/data/fetch_actuals.py     # public FPL API, no key
+python backend/models/forecast.py
+```
+
+Writes `outputs/forecast_predictions.csv`, `outputs/forecast_metrics.json` and `outputs/feature_importance.csv`.
+
+`forecast.py` deliberately exits with an error if the labels are missing. It will not invent a target.
+
+**3. Frontend**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+A pre-built `dist/` is committed — open `dist/index.html` for a zero-setup preview.
+
+---
+
+## Method summary
+
+**Index** (outfield, each component z-scored within position):
+
+| Weight | Component |
+|---|---|
+| 0.55 | expected goal involvement per 90 (`npxg_xag_90`) |
+| 0.25 | actual goals + assists per 90 |
+| 0.20 | share of team minutes |
+
+Goalkeepers: availability only. Rating = percentile within position → 1.0–5.0. Minimum 180 Euro minutes.
+
+**Forecast:** Euro 2024 features → actual 2025–26 EPL expected goal involvement per 90. 5-fold CV, MAE / RMSE / R² / Spearman ρ with fold spread, benchmarked against a mean predictor and a minutes-only model, permutation importance for attribution. Minimum 450 Premier League minutes.
+
+---
+
+## Honest limitations
+
+- ~5 Euro matches per player. Per-90 rates over that sample are noisy no matter how the model is built.
+- The dataset contains no defensive metrics, so defenders are effectively rated on involvement and availability.
+- Cross-role rating comparison is not claimed.
+- Forecasting individual output across a competition change is hard; expect modest correlation, and treat a published modest number as more valuable than an impressive one with no validation story.
+
+Not scouting advice. Not betting advice.
+
+---
+
+## Stack
+
+Python · pandas · scikit-learn · scipy · soccerdata (FBref) · Fantasy Premier League API · React 18 · Vite
