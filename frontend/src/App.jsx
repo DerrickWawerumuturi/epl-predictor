@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import logoUrl from './assets/logo.svg'
 import { PLAYERS } from './data/players.js'
 
 const ROLES = ['ALL', 'FW', 'MF', 'DF', 'GK']
@@ -162,8 +163,8 @@ export default function App() {
         <div className="shell">
           <nav className="nav">
             <div className="nav-brand">
-              <span className="dot" />
-              XG-PREDICTOR
+              <img src={logoUrl} alt="" className="brand-mark" aria-hidden="true" />
+              XGAUGES
             </div>
             <div className="nav-links">
               <a href="#players">Players</a>
@@ -280,7 +281,7 @@ export default function App() {
           <Distribution />
 
           <footer className="footer">
-            <span>XG-PREDICTOR · built by Derrick Waweru</span>
+            <span>XGAUGES · built by Derrick Waweru</span>
             <span>
               data: FBref · Euro 2024 →{' '}
               <a href="https://github.com/DerrickWawerumuturi/epl-predictor" target="_blank" rel="noreferrer">

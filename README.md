@@ -1,4 +1,6 @@
-# ⚽ XG-Predictor — Euro 2024 → Premier League
+<img src="logo.svg" alt="XGauges" width="88" align="right" />
+
+# XGauges — Euro 2024 → Premier League
 
 Rating Euro 2024 players, and forecasting how much they actually produced in the 2025–26 Premier League season.
 

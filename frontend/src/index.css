@@ -80,11 +80,10 @@ body {
   letter-spacing: 0.06em;
 }
 
-.nav-brand .dot {
-  width: 10px;
-  height: 10px;
-  background: var(--green);
-  box-shadow: 0 0 12px rgba(61, 220, 132, 0.7);
+.nav-brand .brand-mark {
+  width: 26px;
+  height: 26px;
+  display: block;
 }
 
 .nav-links {

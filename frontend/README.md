@@ -1,6 +1,6 @@
-# XG-PREDICTOR — Frontend
+# XGauges — Frontend
 
-Single-page UI for the [epl-predictor](https://github.com/DerrickWawerumuturi/epl-predictor) Euro Impact Index. Shows all 256 Euro 2024 players with ≥180 tournament minutes, ranked **within their own position**, with role filters, search, sorting, a top-3 podium and per-role rating distributions.
+Single-page UI for the [XGauges](https://github.com/DerrickWawerumuturi/epl-predictor) Euro Impact Index. Shows all 256 Euro 2024 players with ≥180 tournament minutes, ranked **within their own position**, with role filters, search, sorting, a top-3 podium and per-role rating distributions.
 
 The rating is a percentile within position mapped to 1.0–5.0 — not a prediction. See [MODEL_CARD.md](../MODEL_CARD.md) for what the index measures and what it does not.
 

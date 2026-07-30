@@ -1,4 +1,4 @@
-# Model Card — XG-Predictor
+# Model Card — XGauges
 
 Two separate things live in this repo. Keeping them separate is the point.
 

@@ -1,0 +1,52 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>XGauges - Expected Goals Intelligence</title>
+  <desc>A modern logo for XGauges, featuring a stylized gauge meter with an X overlay, representing performance measurement and expected goals analysis.</desc>
+
+  <!-- Background (optional - remove if using transparent) -->
+  <rect width="256" height="256" fill="transparent"/>
+
+  <!-- Main gauge circle -->
+  <circle cx="128" cy="128" r="90" fill="none" stroke="#3b82f6" stroke-width="4"/>
+
+  <!-- Outer ring accent -->
+  <circle cx="128" cy="128" r="105" fill="none" stroke="#3b82f6" stroke-width="1.5" opacity="0.3"/>
+
+  <!-- Gauge arc (the measurement sweep) -->
+  <path d="M 65 155 A 90 90 0 0 1 191 155"
+        fill="none"
+        stroke="#10b981"
+        stroke-width="5"
+        stroke-linecap="round"/>
+
+  <!-- Gauge needle -->
+  <line x1="128" y1="128" x2="155" y2="75"
+        stroke="#1f2937"
+        stroke-width="4"
+        stroke-linecap="round"/>
+
+  <!-- Needle pivot point -->
+  <circle cx="128" cy="128" r="7" fill="#1f2937"/>
+
+  <!-- X overlay (rotated for dynamic feel) -->
+  <g transform="translate(128, 128) rotate(15)">
+    <line x1="-45" y1="-45" x2="45" y2="45"
+          stroke="#f59e0b"
+          stroke-width="5"
+          stroke-linecap="round"
+          opacity="0.85"/>
+    <line x1="45" y1="-45" x2="-45" y2="45"
+          stroke="#f59e0b"
+          stroke-width="5"
+          stroke-linecap="round"
+          opacity="0.85"/>
+  </g>
+
+  <!-- Decorative tick marks -->
+  <g stroke="#1f2937" stroke-width="2" stroke-linecap="round" opacity="0.4">
+    <line x1="128" y1="35" x2="128" y2="45"/>
+    <line x1="62" y1="57" x2="72" y2="66"/>
+    <line x1="35" y1="128" x2="45" y2="128"/>
+    <line x1="194" y1="128" x2="204" y2="128"/>
+    <line x1="184" y1="190" x2="174" y2="181"/>
+  </g>
+</svg>
