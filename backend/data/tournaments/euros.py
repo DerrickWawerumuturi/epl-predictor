@@ -83,7 +83,7 @@ player_info: Dict[str, str] = \
 
 
 # Problem:
-# The data is not a typical dataframe, but the columns come as multiindex columns, which basically mean that the have two levels
+# The data is not a typical dataframe, but the columns come as multiindex columns, which basically mean that they have two levels
 # one for the column name and the actual stat, that why the columnns in the data frame have:
 # *     ('Playing Time', 'Min')
 # *     ('Playing Time', 'Starts')

@@ -190,7 +190,15 @@ def build_models(numeric: list[str]) -> dict[str, Pipeline]:
 
 
 def score_predictions(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
-    rho, p_value = spearmanr(y_true, y_pred)
+    # A constant predictor (the mean baseline) has no rank information, so
+    # Spearman is undefined. cross_val_predict still produces tiny fold-to-fold
+    # variation in the fitted mean, which yields a spurious non-zero rho.
+    # Report NaN rather than a number a reader might take seriously.
+    if np.std(y_pred) < 1e-9 or len(np.unique(np.round(y_pred, 9))) <= N_SPLITS:
+        rho, p_value = float("nan"), float("nan")
+    else:
+        rho, p_value = spearmanr(y_true, y_pred)
+
     return {
         "mae": float(mean_absolute_error(y_true, y_pred)),
         # NOTE: the original code reported mean_squared_error and called it RMSE.
@@ -199,6 +207,34 @@ def score_predictions(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float
         "spearman": float(rho),
         "spearman_p": float(p_value),
     }
+
+
+def bootstrap_spearman(
+    y_true: np.ndarray, y_pred: np.ndarray, n_boot: int = 2000, seed: int = RANDOM_STATE
+) -> tuple[float, float]:
+    """
+    Percentile bootstrap CI for Spearman rho.
+
+    With a modelling set this small, a point estimate of rho is close to
+    meaningless on its own. The interval is the honest statement.
+    """
+    rng = np.random.default_rng(seed)
+    n = len(y_true)
+    if n < 8 or np.std(y_pred) < 1e-9:
+        return float("nan"), float("nan")
+
+    stats = []
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, n)
+        if np.std(y_pred[idx]) < 1e-9 or np.std(y_true[idx]) < 1e-9:
+            continue
+        rho, _ = spearmanr(y_true[idx], y_pred[idx])
+        if np.isfinite(rho):
+            stats.append(rho)
+
+    if len(stats) < 100:
+        return float("nan"), float("nan")
+    return float(np.percentile(stats, 2.5)), float(np.percentile(stats, 97.5))
 
 
 def cross_validate(pipe: Pipeline, X: pd.DataFrame, y: pd.Series) -> dict:
@@ -243,8 +279,22 @@ def main() -> None:
     actuals = pd.read_csv(ACTUALS_CSV)
     print(f"  {len(actuals)} Premier League players with 2025-26 minutes")
 
+    n_clubs = actuals["club"].nunique()
+    if n_clubs != 20:
+        print(f"\n  *** WARNING: labels cover {n_clubs} clubs, not 20. ***")
+        print("  Re-run backend/data/fetch_actuals.py WITHOUT --live. The live FPL")
+        print("  API deletes relegated clubs once the season rolls over, which makes")
+        print("  the label set survivorship-biased and the error optimistic.\n")
+
     joined = join_euro_to_actuals(euro, actuals)
     print(f"  matched {len(joined)} / {len(euro)} Euro players to a PL record")
+
+    unmatched = euro[~euro["player_name"].isin(joined["player_name"])]
+    if len(unmatched):
+        sample = ", ".join(unmatched.nlargest(8, "minutes")["player_name"])
+        print(f"  unmatched (top 8 by Euro minutes): {sample}")
+        print("  ^ check these by hand: most are genuinely not in the PL, but any")
+        print("    that ARE indicate a name-normalisation gap in common.name_keys().")
 
     data = joined[joined["epl_minutes"] >= MIN_EPL_MINUTES].copy()
     data = data[data[LABEL].notna()].copy()
@@ -288,15 +338,36 @@ def main() -> None:
     best_name = max(real, key=lambda k: real[k]["metrics"]["spearman"])
     best = results[best_name]
     dummy = results["baseline_mean"]["metrics"]
+    minutes_only = results["baseline_euro_minutes"]["metrics"]
 
     print("\n" + "=" * 64)
     print(f"Best by rank correlation: {best_name}")
+
+    lo, hi = bootstrap_spearman(y.to_numpy(), best["oof"])
+    ci_note = f"  bootstrap 95% CI [{lo:+.3f}, {hi:+.3f}]" if np.isfinite(lo) else ""
+    print(f"  Spearman rho = {best['metrics']['spearman']:+.3f}{ci_note}")
+    if np.isfinite(lo) and lo <= 0 <= hi:
+        print("  CI spans zero: cannot rule out that the ranking is no better than chance.")
+
     beat_mae = dummy["mae"] - best["metrics"]["mae"]
-    print(f"  MAE vs mean-baseline: {beat_mae:+.4f} "
+    print(f"  MAE vs mean-baseline:    {beat_mae:+.4f} "
           f"({'better' if beat_mae > 0 else 'WORSE — no usable signal'})")
+
+    # The interesting comparison is not against the mean — it is against the
+    # cheapest sensible heuristic. If the model cannot clear "he played a lot",
+    # it has added nothing worth deploying.
+    beat_minutes = minutes_only["mae"] - best["metrics"]["mae"]
+    margin_within_noise = abs(beat_minutes) < best["metrics"]["mae_std"]
+    print(f"  MAE vs minutes-baseline: {beat_minutes:+.4f} "
+          f"({'better' if beat_minutes > 0 else 'WORSE than counting minutes'})")
+    if margin_within_noise:
+        print(f"    ...but that margin is smaller than the fold spread "
+              f"(±{best['metrics']['mae_std']:.4f}), so the two are not "
+              "reliably distinguishable.")
+
     if best["metrics"]["r2"] < 0:
         print("  R2 is negative: the model is worse than predicting the average.")
-    if best["metrics"]["spearman_p"] > 0.05:
+    if np.isfinite(best["metrics"]["spearman_p"]) and best["metrics"]["spearman_p"] > 0.05:
         print(f"  Spearman p={best['metrics']['spearman_p']:.3f} — rank agreement "
               "is not statistically significant.")
 
@@ -360,9 +431,14 @@ def main() -> None:
     print(f"\n  wrote {pred_path}")
     print(f"  wrote {out_dir / 'forecast_metrics.json'}")
 
-    print("\nBiggest model misses (over-rated by the model):")
+    # Label the direction of each miss. The previous version called all of these
+    # "over-rated", which was wrong for roughly half of them.
+    data["direction"] = np.where(
+        data["predicted_xgi_90"] > data["actual_xgi_90"], "over-rated", "under-rated"
+    )
+    print("\nLargest absolute errors:")
     worst = data.nlargest(5, "abs_error")[
-        ["player_name", "role", "predicted_xgi_90", "actual_xgi_90", "abs_error"]
+        ["player_name", "role", "predicted_xgi_90", "actual_xgi_90", "abs_error", "direction"]
     ]
     print(worst.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
 

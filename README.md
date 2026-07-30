@@ -17,6 +17,8 @@ The first version of this project trained a Random Forest whose target was arith
 
 Rather than paper over that, the descriptive part and the predictive part are now separate programs with separate claims. `MODEL_CARD.md` §3 lists every issue found and what changed.
 
+`backend/models/Models.py` is the original pipeline. It is kept deliberately, unmodified and unused, so the before/after is legible — finding and fixing the leak is the interesting part of this project.
+
 ---
 
 ## Layout
@@ -31,6 +33,7 @@ backend/
     common.py                 # loading, role mapping, name normalisation
     index_score.py            # Euro Impact Index      (no labels needed)
     forecast.py               # supervised forecast     (labels required)
+    Models.py                 # SUPERSEDED — the original leaky pipeline, kept for reference
     outputs/                  # generated CSV + metrics JSON
 frontend/                     # React + Vite single-page UI
 MODEL_CARD.md
@@ -74,7 +77,7 @@ npm install
 npm run dev
 ```
 
-A pre-built `dist/` is committed — open `dist/index.html` for a zero-setup preview.
+`dist/` is a build artefact and is not committed — run `npm run build` to produce it.
 
 ---
 
@@ -93,6 +96,14 @@ Goalkeepers: availability only. Rating = percentile within position → 1.0–5.
 **Forecast:** Euro 2024 features → actual 2025–26 EPL expected goal involvement per 90. 5-fold CV, MAE / RMSE / R² / Spearman ρ with fold spread, benchmarked against a mean predictor and a minutes-only model, permutation importance for attribution. Minimum 450 Premier League minutes.
 
 ---
+
+## Result
+
+Euro 2024 form does carry rank information about 2025–26 Premier League output: **Spearman ρ = +0.54, bootstrap 95% CI [+0.285, +0.715]** (n = 47 outfield players, 5-fold CV), with expected-goal metrics topping permutation importance.
+
+**But no trained model beat a one-feature baseline.** A Ridge regression on Euro *minutes alone* wins on MAE (0.1116 vs 0.1228), RMSE and R². The reported conclusion is therefore negative: on this sample, most of the recoverable signal is selection — good players play more — not anything the per-90 metrics add on top. `forecast.py` prints `WORSE than counting minutes` automatically, because that is the point of having a baseline.
+
+The binding constraint is n = 47, not model choice. Full numbers, the failure analysis, and the survivorship-bias bug that initially made the model *look* like it won are in [MODEL_CARD.md](MODEL_CARD.md).
 
 ## Honest limitations
 
