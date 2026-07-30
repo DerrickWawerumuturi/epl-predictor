@@ -22,9 +22,11 @@ INDEX DEFINITION
 ----------------
 For outfield players (FW / MF / DF), all components z-scored within role:
 
-    0.55 * z(npxg_xag_90)     expected goal involvement per 90 (quality)
-    0.25 * z(involvement_90)  actual goals + assists per 90 (output)
-    0.20 * z(minutes_share)   share of team minutes played (trust)
+    0.45 * z(npxg_xag_90)     expected goal involvement per 90 (quality)
+    0.20 * z(involvement_90)  actual goals + assists per 90 (output)
+    0.35 * z(minutes_share)   share of team minutes played (trust)
+
+Minimum 270 Euro minutes (three full matches) to be ranked at all.
 
 Goalkeepers have no meaningful xG-based attacking metrics, so they are scored
 on availability alone and flagged as such. Cross-role comparison is NOT
@@ -38,17 +40,22 @@ import json
 import pandas as pd
 
 from common import (
-    MIN_EURO_MINUTES,
+    MIN_EURO_MINUTES_INDEX,
     ensure_output_dir,
     load_euro,
     to_five_point,
     zscore_within,
 )
 
+# Weights shifted toward minutes after inspecting the actual output: at
+# 0.55/0.25/0.20 with a 180-minute floor, the top-rated forward was a player
+# with 182 minutes (two games) and an xGI/90 of 1.25 — a small-sample artefact.
+# Per-90 rates over two matches are mostly variance, so availability now carries
+# more of the score and the floor is three full matches.
 WEIGHTS = {
-    "npxg_xag_90": 0.55,
-    "involvement_90": 0.25,
-    "minutes_share": 0.20,
+    "npxg_xag_90": 0.45,
+    "involvement_90": 0.20,
+    "minutes_share": 0.35,
 }
 
 
@@ -104,7 +111,7 @@ def build_index(df: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     print("Euro Impact Index")
     print("=" * 60)
-    df = load_euro(min_minutes=MIN_EURO_MINUTES)
+    df = load_euro(min_minutes=MIN_EURO_MINUTES_INDEX)
     ranked = build_index(df)
 
     out_dir = ensure_output_dir()
@@ -121,7 +128,7 @@ def main() -> None:
     meta = {
         "kind": "descriptive index (not a trained model)",
         "weights": WEIGHTS,
-        "min_euro_minutes": MIN_EURO_MINUTES,
+        "min_euro_minutes": MIN_EURO_MINUTES_INDEX,
         "n_players": int(len(ranked)),
         "by_role": {k: int(v) for k, v in ranked["role"].value_counts().items()},
         "rating_scale": "percentile rank within role, mapped to 1.0-5.0",

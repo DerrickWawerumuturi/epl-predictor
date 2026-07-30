@@ -28,9 +28,23 @@ EURO_PARQUET = (
 ACTUALS_CSV = DATA_DIR / "actuals" / "epl_2025_26.csv"
 OUTPUT_DIR = MODELS_DIR / "outputs"
 
-# Minimum Euro 2024 minutes for a player to be modelled at all.
-# Below this, per-90 rates are dominated by sampling noise.
+# Minimum Euro 2024 minutes. Below this, per-90 rates are dominated by
+# sampling noise.
+#
+# These two are deliberately different:
+#
+#   INDEX (270 = three full matches) is strict, because the index is a public
+#   ranking. With a 180-minute floor a two-game cameo could top the list purely
+#   on variance — Francisco Conceição ranked #1 forward on 182 minutes and an
+#   xGI/90 of 1.25, which is noise, not the best forward at the tournament.
+#
+#   FORECAST (180) stays permissive, because there the binding constraint is
+#   sample size: only 58 of 256 Euro players have a Premier League label at all.
+#   Tightening the floor would trade a real statistical problem (n is too small)
+#   for a cosmetic one (the ranking looks odd). Noisy features are also less
+#   damaging than missing rows, since cross-validation prices them in.
 MIN_EURO_MINUTES = 180
+MIN_EURO_MINUTES_INDEX = 270
 
 # ---------------------------------------------------------------------------
 # Role mapping

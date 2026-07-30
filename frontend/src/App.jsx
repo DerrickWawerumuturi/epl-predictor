@@ -38,7 +38,10 @@ function Podium({ players }) {
             {initials(p.name)}
           </div>
           <h3>{p.name}</h3>
-          <div className="nation">{p.nation}</div>
+          <div className="nation">
+            {p.nation}
+            {p.club ? <span className="club-badge">{p.club}</span> : null}
+          </div>
           <div className="chips">
             <span className={`chip role-${p.role}`}>{p.role}</span>
             <span className="chip rating">{p.rating.toFixed(1)}</span>
@@ -60,7 +63,10 @@ function PlayerCard({ p }) {
         <span className="rank-tag mono">#{String(p.rank).padStart(2, '0')}</span>
       </div>
       <h4>{p.name}</h4>
-      <div className="nation">{p.nation}</div>
+      <div className="nation">
+        {p.nation}
+        {p.club ? <span className="club-badge">{p.club}</span> : null}
+      </div>
       <div className="meta-row">
         <div className="chips">
           <span className={`chip role-${p.role}`}>{p.role}</span>
@@ -136,24 +142,32 @@ export default function App() {
   const [role, setRole] = useState('ALL')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('rating')
+  const [plOnly, setPlOnly] = useState(false)
 
   const nations = useMemo(() => new Set(PLAYERS.map((p) => p.nation)).size, [])
+  const plCount = useMemo(() => PLAYERS.filter((p) => p.inPL).length, [])
 
   const filtered = useMemo(() => {
     let list = PLAYERS
+    if (plOnly) list = list.filter((p) => p.inPL)
     if (role !== 'ALL') list = list.filter((p) => p.role === role)
     if (query.trim()) {
       const q = query.trim().toLowerCase()
-      list = list.filter((p) => p.name.toLowerCase().includes(q) || p.nation.toLowerCase().includes(q))
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.nation.toLowerCase().includes(q) ||
+          (p.club || '').toLowerCase().includes(q),
+      )
     }
     const sorted = [...list]
     if (sort === 'rating') sorted.sort((a, b) => b.score - a.score)
     if (sort === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name))
     if (sort === 'rating-asc') sorted.sort((a, b) => a.score - b.score)
     return sorted
-  }, [role, query, sort])
+  }, [role, query, sort, plOnly])
 
-  const top3 = PLAYERS.slice(0, 3)
+  const top3 = filtered.slice(0, 3)
   const showPodium = role === 'ALL' && !query.trim() && sort === 'rating'
 
   return (
@@ -193,7 +207,8 @@ export default function App() {
             </h1>
             <p className="hero-sub">
               {PLAYERS.length} Euro 2024 players scored on expected goal involvement, output and
-              minutes — then ranked <strong>against their own position</strong>.
+              minutes — then ranked <strong>against their own position</strong>. All leagues;{' '}
+              {plCount} of them play in the Premier League.
             </p>
             <div className="hero-ctas">
               <a className="btn primary" href="#players">
@@ -215,8 +230,10 @@ export default function App() {
               <div className="value">{nations}</div>
             </div>
             <div className="stat">
-              <div className="label">Min. Euro minutes</div>
-              <div className="value">180</div>
+              <div className="label">In the Premier League</div>
+              <div className="value">
+                <em>{plCount}</em> of {PLAYERS.length}
+              </div>
             </div>
             <div className="stat">
               <div className="label">Rating</div>
@@ -227,12 +244,17 @@ export default function App() {
           </div>
 
           <div className="method-note mono">
-            <strong>What this is:</strong> a transparent weighted index — 0.55 expected goal
-            involvement per 90, 0.25 actual goals + assists per 90, 0.20 share of team minutes,
-            each z-scored within position. It <em>describes</em> Euro 2024; it is not a prediction.
-            Goalkeepers are scored on availability only. The supervised forecast — Euro form in,
-            real 2025–26 Premier League output as the label — is a separate model with published
-            cross-validated error.
+            <strong>What this is:</strong> a transparent weighted index — 0.45 expected goal
+            involvement per 90, 0.20 actual goals + assists per 90, 0.35 share of team minutes,
+            each z-scored within position, minimum 270 Euro minutes. It <em>describes</em> Euro
+            2024; it is not a prediction. Goalkeepers are scored on availability only.
+            <br />
+            <br />
+            <strong>Why players from Real Madrid and Al-Nassr are here:</strong> the index needs no
+            Premier League data, so it rates every Euro 2024 player regardless of league — only{' '}
+            {plCount} of {PLAYERS.length} play in England. Use the{' '}
+            <em>Premier League only</em> filter to narrow it. The separate supervised forecast is
+            England-only, which is exactly why its sample is small.
           </div>
 
           <section id="players">
@@ -266,6 +288,14 @@ export default function App() {
                 <option value="rating-asc">Sort: worst first</option>
                 <option value="name">Sort: name A–Z</option>
               </select>
+              <button
+                className={`pl-toggle mono ${plOnly ? 'on' : ''}`}
+                onClick={() => setPlOnly((v) => !v)}
+                aria-pressed={plOnly}
+              >
+                <span className="tick">{plOnly ? '✓' : ''}</span>
+                Premier League only ({plCount})
+              </button>
             </div>
 
             {showPodium && <Podium players={top3} />}

@@ -19,10 +19,14 @@ Two separate things live in this repo. Keeping them separate is the point.
 **Definition.** For outfield players, all components z-scored within role:
 
 ```
-0.55 · z(npxg_xag_90)     expected goal involvement per 90
-0.25 · z(involvement_90)  actual goals + assists per 90
-0.20 · z(minutes_share)   share of team minutes
+0.45 · z(npxg_xag_90)     expected goal involvement per 90
+0.20 · z(involvement_90)  actual goals + assists per 90
+0.35 · z(minutes_share)   share of team minutes
 ```
+
+**Weights were revised after looking at the output.** At 0.55/0.25/0.20 with a 180-minute floor, the top-rated forward was Francisco Conceição on **182 minutes** — two games — with an xGI/90 of 1.25. That is variance, not the best forward at the tournament. Raising the floor to 270 minutes (three full matches) and moving weight onto availability put Lamine Yamal (503 minutes) at the top instead, which is defensible.
+
+This is worth stating plainly because it is the whole argument for inspecting output rather than trusting summary statistics: no metric flagged that problem. It was visible the moment anyone read the ranking.
 
 Goalkeepers are scored on availability alone — xG-based attacking metrics are meaningless for them — and are flagged in the output.
 
@@ -35,6 +39,8 @@ Goalkeepers are scored on availability alone — xG-based attacking metrics are 
 - Cross-role comparison is not claimed. A 4.8 defender and a 4.8 forward are each strong *for their position*; the numbers are not on a common scale.
 - ~5 Euro matches per player. Per-90 rates over that sample are noisy, which is why availability is weighted at all.
 - Weights are judgement, not fitted.
+- **The index covers all leagues; the forecast does not.** 177 players are ranked, but only 46 play in the Premier League. This is intentional — the index needs no labels — but it means the frontend shows Real Madrid and Al-Nassr players on a page a visitor may assume is about England. The UI now shows each player's club and offers a *Premier League only* filter.
+- Defensive quality is absent from the dataset entirely, so defenders are effectively ranked on involvement and availability.
 
 ---
 
@@ -106,10 +112,23 @@ Two lessons worth more than the model itself:
 
 In rough order of expected value:
 
-1. **More tournaments.** Copa América 2024, Euro 2020, World Cup 2022 — same feature schema, same label join. This is the only change that addresses `n = 47`, and the repo already has a `copa_america.ipynb` stub.
-2. **A nested test of incremental value.** Fit minutes-only, then minutes + expected-goal metrics, and test whether the added features improve out-of-fold error beyond noise. That answers the actual question ("do the per-90 metrics add anything?") directly instead of by leaderboard.
-3. **Predict a rank-transformed target,** since the product is a ranking and the raw label is right-skewed.
-4. **Per-90 uncertainty weighting** — a player with 200 Euro minutes should not carry the same weight as one with 600.
+1. **Labels from more than one league.** This is the big one. The label source is the *Fantasy Premier League* API, so it only covers England — which throws away 131 of 177 ranked players. The unmatched list is not a name-matching failure, it is geography: Bellingham (Real Madrid), Kane (Bayern), Upamecano (Bayern), Koundé (Barcelona), Maignan (Milan), Unai Simón (Athletic), de Vrij (Inter).
+
+   Two consequences, and the second is worse than the first. It caps the sample at `n = 47`; and it is a **selection bias**, because the strongest Euro performers are disproportionately in La Liga, Serie A and the Bundesliga, so the label distribution is truncated at the elite end.
+
+   The fix reuses machinery that already exists — `soccerdata` is already a dependency and `join_euro_to_actuals()` matches on names, not clubs, so it needs no changes:
+
+   ```python
+   FBref(leagues=['ENG-Premier League', 'ESP-La Liga', 'ITA-Serie A',
+                  'GER-Bundesliga', 'FRA-Ligue 1'], seasons='2025-2026')
+   ```
+
+   Plausibly `n = 150–200`. One complication must be handled: 0.40 xGI/90 in Ligue 1 is not the same achievement as 0.40 in the Premier League. Either add `league` as a categorical feature, or — cleaner — z-score the label *within league* using the existing `zscore_within()`, so the target becomes "output relative to peers in the same competition."
+
+2. **More tournaments.** Copa América 2024, Euro 2020, World Cup 2022 — same feature schema, same label join. Also addresses `n`, and the repo already has a `copa_america.ipynb` stub.
+3. **A nested test of incremental value.** Fit minutes-only, then minutes + expected-goal metrics, and test whether the added features improve out-of-fold error beyond noise. That answers the actual question ("do the per-90 metrics add anything?") directly instead of by leaderboard.
+4. **Predict a rank-transformed target,** since the product is a ranking and the raw label is right-skewed.
+5. **Per-90 uncertainty weighting** — a player with 200 Euro minutes should not carry the same weight as one with 600.
 
 ---
 

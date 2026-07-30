@@ -35,6 +35,7 @@ backend/
     common.py                 # loading, role mapping, name normalisation
     index_score.py            # Euro Impact Index      (no labels needed)
     forecast.py               # supervised forecast     (labels required)
+    export_frontend.py        # index + clubs → frontend/src/data/players.js
     Models.py                 # SUPERSEDED — the original leaky pipeline, kept for reference
     outputs/                  # generated CSV + metrics JSON
 frontend/                     # React + Vite single-page UI
@@ -58,7 +59,11 @@ cd backend/models
 python index_score.py
 ```
 
-Writes `outputs/euro_impact_index.csv` and `outputs/index_meta.json`.
+Writes `outputs/euro_impact_index.csv` and `outputs/index_meta.json`. Then regenerate the frontend data module:
+
+```bash
+python export_frontend.py
+```
 
 **2. The forecast** — needs the real labels first:
 
@@ -89,11 +94,11 @@ npm run dev
 
 | Weight | Component |
 |---|---|
-| 0.55 | expected goal involvement per 90 (`npxg_xag_90`) |
-| 0.25 | actual goals + assists per 90 |
-| 0.20 | share of team minutes |
+| 0.45 | expected goal involvement per 90 (`npxg_xag_90`) |
+| 0.20 | actual goals + assists per 90 |
+| 0.35 | share of team minutes |
 
-Goalkeepers: availability only. Rating = percentile within position → 1.0–5.0. Minimum 180 Euro minutes.
+Goalkeepers: availability only. Rating = percentile within position → 1.0–5.0. Minimum **270** Euro minutes (three full matches).
 
 **Forecast:** Euro 2024 features → actual 2025–26 EPL expected goal involvement per 90. 5-fold CV, MAE / RMSE / R² / Spearman ρ with fold spread, benchmarked against a mean predictor and a minutes-only model, permutation importance for attribution. Minimum 450 Premier League minutes.
 
@@ -109,6 +114,7 @@ The binding constraint is n = 47, not model choice. Full numbers, the failure an
 
 ## Honest limitations
 
+- **Labels are Premier League only.** The index ranks 177 Euro 2024 players across all leagues, but only **46** have a Premier League record, so the forecast runs on n = 47. This is both the binding sample-size constraint and a selection bias: the strongest Euro performers are over-represented in La Liga, Serie A and the Bundesliga, so the label distribution is truncated at the elite end. Extending labels to FBref's Big Five — with the label z-scored within league to control for league strength — is the highest-value next step.
 - ~5 Euro matches per player. Per-90 rates over that sample are noisy no matter how the model is built.
 - The dataset contains no defensive metrics, so defenders are effectively rated on involvement and availability.
 - Cross-role rating comparison is not claimed.

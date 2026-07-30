@@ -367,6 +367,47 @@ body {
 .search::placeholder { color: var(--text-faint); }
 .search:focus { border-color: var(--green); }
 
+.pl-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  padding: 11px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pl-toggle:hover { color: var(--text); background: var(--bg-raise); }
+
+.pl-toggle .tick {
+  width: 12px;
+  display: inline-block;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.pl-toggle.on {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.club-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--cyan);
+  background: var(--cyan-soft);
+  vertical-align: middle;
+}
+
 .sort-select {
   background: var(--bg);
   border: 1px solid var(--line-strong);
